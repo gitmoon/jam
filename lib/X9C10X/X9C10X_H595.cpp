@@ -6,8 +6,11 @@
 //     URL: https://github.com/RobTillaart/X9C10X
 
 
-#include "X9C10X.h"
+#include "X9C10X_H595.h"
 
+#define CS_HC595    5
+#define CS_HC595_SET()  digitalWrite(CS_HC595, LOW)
+#define CS_HC595_RESET()  digitalWrite(CS_HC595, HIGH)
 
 //  minimum pulse width CLOCK = ? us (datasheet);
 //  digitalWrite takes enough time on UNO / AVR so clock_delay == 0
@@ -33,20 +36,29 @@ X9C::X9C()
 }
 
 
-void X9C::begin(uint8_t pulsePin, uint8_t directionPin, uint8_t selectPin)
+void X9C::begin(uint8_t pulsePin, uint8_t directionPin, uint8_t selectPin, uint8_t *latchReg)
 {
   _pulsePin     = pulsePin;
   _directionPin = directionPin;
   _selectPin    = selectPin;
+  _latchReg     = latchReg;
 
   //  #7 order of the initialization does matter
   //     as it might introduce an unwanted STORE pulse.
   //     use of pull ups might be wise.
-  digitalWrite(_selectPin,    HIGH);
+  if(_latchReg == NULL)
+  {
+    digitalWrite(_selectPin,    HIGH);
+  }
+  else
+  {
+    setOutBitHC595();
+  } 
+
   digitalWrite(_pulsePin,     HIGH);
   digitalWrite(_directionPin, HIGH);
 
-  pinMode(_selectPin, OUTPUT);
+  ////// pinMode(_selectPin, OUTPUT);
   pinMode(_pulsePin, OUTPUT);
   pinMode(_directionPin, OUTPUT);
 
@@ -72,11 +84,25 @@ bool X9C::decr()
 void X9C::store()
 {
   //  _pulsePin starts default HIGH
-  digitalWrite(_selectPin, LOW);
+  if(_latchReg == NULL)
+  {
+    digitalWrite(_selectPin, LOW);
+  }
+  else
+  {
+    resetOutBitHC595();
+  }
   #if X9C10X_DELAY_MICROS > 0
   delayMicroseconds(X9C10X_DELAY_MICROS);
   #endif
-  digitalWrite(_selectPin, HIGH);
+  if(_latchReg == NULL)
+  {
+    digitalWrite(_selectPin, HIGH);
+  }
+  else
+  {
+    setOutBitHC595();
+  }
   delay(20);    //  Tcph  page 5
 }
 
@@ -91,7 +117,14 @@ void X9C::_move(uint8_t direction, uint8_t steps)
   delayMicroseconds(3);  // Tdi  (page 5)
 
   //  _pulsePin starts default HIGH
-  digitalWrite(_selectPin, LOW);
+  if(_latchReg == NULL)
+  {
+    digitalWrite(_selectPin, LOW);
+  }
+  else
+  {  
+    resetOutBitHC595();
+  }
   while (steps--)
   {
     digitalWrite(_pulsePin, HIGH);
@@ -105,9 +138,34 @@ void X9C::_move(uint8_t direction, uint8_t steps)
     #endif
   }
   //  _pulsePin == LOW, (No Store, page 7)
-  digitalWrite(_selectPin, HIGH);
+  if(_latchReg == NULL)
+  {
+    digitalWrite(_selectPin, HIGH);
+  }
+  else
+  {
+    setOutBitHC595();
+  }
   // reset _pulsePin to default.
   digitalWrite(_pulsePin, HIGH);
+}
+
+void X9C::setOutBitHC595()
+{
+  CS_HC595_SET();
+  *_latchReg = *_latchReg | (1 << _selectPin);
+  // Serial.printf("s %d", *_latchReg);
+  SPI.transfer(*_latchReg);
+  CS_HC595_RESET();
+}
+
+void X9C::resetOutBitHC595()
+{
+  CS_HC595_SET();
+  *_latchReg = *_latchReg & (~(1 << _selectPin));
+  // Serial.printf("r %d", *_latchReg);
+  SPI.transfer(~(1 << _selectPin));
+  CS_HC595_RESET();
 }
 
 
@@ -231,7 +289,7 @@ uint16_t X9C10X::getType()
 /////////////////////////////////////////////////////////
 //
 //  SPECIFIC DERIVED DEVICE CLASSES
-//
+
 X9C102::X9C102(uint32_t ohm) : X9C10X(ohm)
 {
   _type = 102;
@@ -252,6 +310,22 @@ X9C503::X9C503(uint32_t ohm) : X9C10X(ohm)
   _type = 503;
 }
 
+HC595::HC595() : latchReg(0x0F)
+{
+
+}
+
+void HC595::begin()
+{
+  pinMode(CS_HC595, OUTPUT);
+  CS_HC595_RESET();
+  SPI.begin(18, 21, 23);
+  int HC595_OUTPUT = 4;
+  for(int i = 0; i < HC595_OUTPUT; i++ )
+  {
+    pot[i].begin(15, 4, i, &latchReg); 
+  } 
+}
 
 //  -- END OF FILE --
 

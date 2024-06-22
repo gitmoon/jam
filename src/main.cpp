@@ -1,20 +1,17 @@
 #include <Arduino.h>
-#include <SPI.h>
 #include <Wire.h>
 #include <GEM_u8g2.h>
 #include "X9C10X_H595.h"
 // #include <ESP32Encoder.h>
 // #include <ezButton.h>  // the library to use for SW pin
-//#include "max7219.h"
 #include <KeyDetector.h>
 
-#define CS_HC595    5
-// #define CS_MAX7219  15
 #define KEY_PIN     0
 #define LED_BLUE    2
 
-#define CS_HC595_SET()  digitalWrite(CS_HC595, LOW)
-#define CS_HC595_RESET()  digitalWrite(CS_HC595, HIGH)
+// #define CS_HC595    5
+// #define CS_HC595_SET()  digitalWrite(CS_HC595, LOW)
+// #define CS_HC595_RESET()  digitalWrite(CS_HC595, HIGH)
 
 
 // #define CLK_PIN 27  // ESP32 pin GPIO25 connected to the rotary encoder's CLK pin
@@ -106,7 +103,9 @@ GEM_u8g2 menu(u8g2, GEM_POINTER_ROW, GEM_ITEMS_COUNT_AUTO);
 // GEM_u8g2 menu(u8g2, /* menuPointerType= */ GEM_POINTER_ROW, /* menuItemsPerScreen= */ GEM_ITEMS_COUNT_AUTO, /* menuItemHeight= */ 10, /* menuPageScreenTopOffset= */ 10, /* menuValuesLeftOffset= */ 86);
 
 
-X9C10X pot(10000);
+// X9C10X pot(10000);
+HC595 hc595;
+
 bool keyFlag = false;
 bool task4Active = true;
 
@@ -147,15 +146,17 @@ void setup()
   u8g2.begin();
   Serial.println();
   Serial.print("X9C10X_LIB_VERSION: ");
-  pot.begin(33, 32, 35);  // pulse, direction, select
-  pot.setPosition(0);
+  // pot.begin(33, 32, 35);  // pulse, direction, select
+  // pot.setPosition(0);
 
   pinMode(channelA, INPUT_PULLUP);
   pinMode(channelB, INPUT_PULLUP);
   pinMode(buttonPin, INPUT_PULLUP);
 
 
-  SPI.begin(18, 21, 23);
+  // SPI.begin(18, 21, 23);
+  hc595.begin();
+
   //max7219.Begin();
 
   mutexSPI = xSemaphoreCreateMutex();
@@ -216,15 +217,66 @@ void Task0(void* parameters)
   xSemaphoreTake(mutexSerial, portMAX_DELAY);
   Serial.printf("[%8lu] Run Task0 only once: %d\r\n", millis(), xPortGetCoreID());
   xSemaphoreGive(mutexSerial);
+  // pinMode(CS_HC595, OUTPUT);
+  // CS_HC595_RESET();
+  //  while (1) {
+  //   //TODO: код що виконується безкінечно
+  //   for (size_t i = 0; i < 4; i++)
+  //   {
+  //     xSemaphoreTake(mutexSerial, portMAX_DELAY);
+  //     Serial.printf("[%8lu] Run Task0 on Core: %d\r\n", millis(), xPortGetCoreID());
+  //     xSemaphoreGive(mutexSerial);
+      
+  //     // xSemaphoreTake(mutexSPI, portMAX_DELAY);
+  //     CS_HC595_SET();
+  //     SPI.transfer(1 << i);
+  //     CS_HC595_RESET();
+  //     // xSemaphoreGive(mutexSPI);
 
+  //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+  //   }
+  //  }
+
+  int direction = 1;
+  for (uint8_t i = 0; i < 12; i++)
+  {
+    if(direction)
+    {
+      hc595.pot[0].incr();
+      hc595.pot[1].incr();
+      hc595.pot[2].incr();
+      hc595.pot[3].incr();
+      // Serial.print('+');
+    } 
+    else
+    {
+      hc595.pot[0].decr();
+      hc595.pot[1].decr();
+      hc595.pot[2].decr();
+      hc595.pot[3].decr();
+      // Serial.print('-'); 
+    }
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    if(i == 11)
+    {
+      i = 0;
+      if(direction)
+        direction = 0;
+      else
+        direction = 1;
+
+      Serial.println();
+    }  
+  }
   vTaskDelete(NULL);
 }
 
 void Task1(void* parameters)
 {
   //TODO: код що виконується раз при запускі задачі
-  pinMode(CS_HC595, OUTPUT);
-  CS_HC595_RESET();
+  // pinMode(CS_HC595, OUTPUT);
+  // CS_HC595_RESET();
   // u8g2.clearBuffer();
   // u8g2.setFont(u8g2_font_7x14B_tr);
   // u8g2.drawStr(0,10,"Hi,vit");

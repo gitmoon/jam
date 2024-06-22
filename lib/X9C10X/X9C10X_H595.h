@@ -8,21 +8,22 @@
 
 
 #include "Arduino.h"
+#include <SPI.h>
 
 #define X9C10X_LIB_VERSION        (F("0.2.3"))
-
 
 /////////////////////////////////////////////////////////
 //
 //  X9C MINIMAL BASE CLASS
 //
+
 class X9C
 {
 public:
 
   X9C();
 
-  void begin(uint8_t pulsePin, uint8_t directionPin, uint8_t selectPin);
+  void begin(uint8_t pulsePin, uint8_t directionPin, uint8_t selectPin, uint8_t *latchReg);
 
   //  step size 1.
   //  return false if end of range reached.
@@ -32,10 +33,15 @@ public:
   //  use with care
   void     store();
 
+private:
+  void setOutBitHC595();
+  void resetOutBitHC595();
+
 protected:
   uint8_t  _pulsePin;
   uint8_t  _directionPin;
   uint8_t  _selectPin;
+  uint8_t*  _latchReg;
 
   void     _move(uint8_t direction, uint8_t steps = 1);
 };
@@ -50,6 +56,7 @@ class X9C10X : public X9C
 public:
   //  ohm can be actual measured value e.g 9950 ohm (calibration)
   X9C10X(uint32_t maxOhm = 10000);
+  //X9C10X(uint32_t maxOhm = 10000, uint8_t latchReg = 0) : X9C(latchReg){};
 
   //  position = 0..99
   //             values > 99 are truncated.
@@ -119,6 +126,18 @@ class X9C503 : public X9C10X
 {
 public:
   X9C503(uint32_t ohm = 50000);
+};
+
+
+class HC595
+{
+public:
+  X9C10X pot[4]; 
+  HC595();
+  void begin();
+  
+private:
+  uint8_t latchReg;
 };
 
 
