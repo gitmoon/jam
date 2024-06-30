@@ -2,24 +2,10 @@
 #include <Wire.h>
 #include <GEM_u8g2.h>
 #include "X9C10X_H595.h"
-// #include <ESP32Encoder.h>
-// #include <ezButton.h>  // the library to use for SW pin
 #include <KeyDetector.h>
 
 #define KEY_PIN     0
 #define LED_BLUE    2
-
-// #define CS_HC595    5
-// #define CS_HC595_SET()  digitalWrite(CS_HC595, LOW)
-// #define CS_HC595_RESET()  digitalWrite(CS_HC595, HIGH)
-
-
-// #define CLK_PIN 27  // ESP32 pin GPIO25 connected to the rotary encoder's CLK pin
-// #define DT_PIN 26   // ESP32 pin GPIO26 connected to the rotary encoder's DT pin
-// #define SW_PIN 25   // ESP32 pin GPIO27 connected to the rotary encoder's SW pin
-
-#define DIRECTION_CW 0   // clockwise direction
-#define DIRECTION_CCW 1  // counter-clockwise direction
 
 // Define signal identifiers for three outputs of encoder (channel A, channel B and a push-button)
 #define KEY_A 1
@@ -29,10 +15,6 @@
 void setupMenu();
 void Task0(void* parameters);
 void Task1(void* parameters);
-void Task2(void* parameters);
-void Task3(void* parameters);
-void Task4(void* parameters);
-void Task5(void* parameters);
 
 // Pins encoder is connected to
 const byte channelA = 27;
@@ -114,31 +96,6 @@ TaskHandle_t Task2Handle = NULL;
 SemaphoreHandle_t mutexSPI;
 SemaphoreHandle_t mutexSerial;
 
-// volatile int counter = 0;
-// volatile int direction = DIRECTION_CW;
-// volatile unsigned long last_time;  // for debouncing
-// int prev_counter;
-
-// ezButton button(SW_PIN);  // create ezButton object that attach to pin 7;
-
-
-// void IRAM_ATTR ISR_encoder() {
-//   if ((millis() - last_time) < 50)  // debounce time is 50ms
-//     return;
-
-//   if (digitalRead(DT_PIN) == HIGH) {
-//     // the encoder is rotating in counter-clockwise direction => decrease the counter
-//     counter--;
-//     direction = DIRECTION_CCW;
-//   } else {
-//     // the encoder is rotating in clockwise direction => increase the counter
-//     counter++;
-//     direction = DIRECTION_CW;
-//   }
-
-//   last_time = millis();
-// }
-
 void setup() 
 {
   Serial.begin(115200);
@@ -146,30 +103,14 @@ void setup()
   u8g2.begin();
   Serial.println();
   Serial.print("X9C10X_LIB_VERSION: ");
-  // pot.begin(33, 32, 35);  // pulse, direction, select
-  // pot.setPosition(0);
 
   pinMode(channelA, INPUT_PULLUP);
   pinMode(channelB, INPUT_PULLUP);
   pinMode(buttonPin, INPUT_PULLUP);
 
-
-  // SPI.begin(18, 21, 23);
   hc595.begin();
-
-  //max7219.Begin();
-
   mutexSPI = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
-
-  // configure encoder pins as inputs
-  // pinMode(CLK_PIN, INPUT);
-  // pinMode(DT_PIN, INPUT);
-  // button.setDebounceTime(50);  // set debounce time to 50 milliseconds
-
-  // use interrupt for CLK pin is enough
-  // call ISR_encoder() when CLK pin changes from LOW to HIGH
-  // attachInterrupt(digitalPinToInterrupt(CLK_PIN), ISR_encoder, RISING);
 
     // U8g2 library init.
   u8g2.begin();
@@ -184,10 +125,6 @@ void setup()
 
   xTaskCreate(Task0, "Task0", 2048, NULL, 1, NULL);
   xTaskCreatePinnedToCore(Task1, "Task1", 2048, NULL, 1, NULL, 0);
-  // xTaskCreatePinnedToCore(Task2, "Task2", 2048, NULL, 1, &Task2Handle, 1);
-  // xTaskCreate(Task3, "Task3", 2048, NULL, 2, NULL);
-  // xTaskCreate(Task4, "Task4", 2048, NULL, 1, NULL);
-  // xTaskCreate(Task5, "Task5", 2048, NULL, 1, NULL);
 }
 
 void setupMenu() {
@@ -217,26 +154,6 @@ void Task0(void* parameters)
   xSemaphoreTake(mutexSerial, portMAX_DELAY);
   Serial.printf("[%8lu] Run Task0 only once: %d\r\n", millis(), xPortGetCoreID());
   xSemaphoreGive(mutexSerial);
-  // pinMode(CS_HC595, OUTPUT);
-  // CS_HC595_RESET();
-  //  while (1) {
-  //   //TODO: код що виконується безкінечно
-  //   for (size_t i = 0; i < 4; i++)
-  //   {
-  //     xSemaphoreTake(mutexSerial, portMAX_DELAY);
-  //     Serial.printf("[%8lu] Run Task0 on Core: %d\r\n", millis(), xPortGetCoreID());
-  //     xSemaphoreGive(mutexSerial);
-      
-  //     // xSemaphoreTake(mutexSPI, portMAX_DELAY);
-  //     CS_HC595_SET();
-  //     SPI.transfer(1 << i);
-  //     CS_HC595_RESET();
-  //     // xSemaphoreGive(mutexSPI);
-
-  //     vTaskDelay(1000 / portTICK_PERIOD_MS);
-  //   }
-  //  }
-
   int direction = 1;
   for (uint8_t i = 0; i < 12; i++)
   {
@@ -274,251 +191,93 @@ void Task0(void* parameters)
 
 void Task1(void* parameters)
 {
-  //TODO: код що виконується раз при запускі задачі
-  // pinMode(CS_HC595, OUTPUT);
-  // CS_HC595_RESET();
-  // u8g2.clearBuffer();
-  // u8g2.setFont(u8g2_font_7x14B_tr);
-  // u8g2.drawStr(0,10,"Hi,vit");
-  // u8g2.sendBuffer();
-  
   while (1)
   {
     vTaskDelay(10 / portTICK_PERIOD_MS);
-  // Get current time to use later on
-  now = millis();
-
-  // If menu is ready to accept button press...
-  if (menu.readyForKey()) {
-    // ...detect key press using KeyDetector library
-    // and pass pressed button to menu
-    myKeyDetector.detect();
-  
-    switch (myKeyDetector.trigger) {
-      case KEY_C:
-        // Button was pressed
-        Serial.println("Button pressed");
-        // Save current time as a time of the key press event
-        keyPressTime = now;
-        break;
-    }
-    /* Detecting rotation of the encoder on release rather than push
-    (i.e. myKeyDetector.triggerRelease rather myKeyDetector.trigger)
-    may lead to more stable readings (without excessive signal ripple) */
-    switch (myKeyDetector.triggerRelease) {
-      case KEY_A:
-        // Signal from Channel A of encoder was detected
-        if (digitalRead(channelB) == LOW) {
-          // If channel B is low then the knob was rotated CCW
-          if (myKeyDetector.current == KEY_C) {
-            // If push-button was pressed at that time, then treat this action as GEM_KEY_LEFT,...
-            Serial.println("Rotation CCW with button pressed (release)");
-            menu.registerKeyPress(GEM_KEY_LEFT);
-            // Button was in a pressed state during rotation of the knob, acting as a modifier to rotation action
-            secondaryPressed = true;
-          } else {
-            // ...or GEM_KEY_UP otherwise
-            Serial.println("Rotation CCW (release)");
-            menu.registerKeyPress(GEM_KEY_UP);
-          }
-        } else {
-          // If channel B is high then the knob was rotated CW
-          if (myKeyDetector.current == KEY_C) {
-            // If push-button was pressed at that time, then treat this action as GEM_KEY_RIGHT,...
-            Serial.println("Rotation CW with button pressed (release)");
-            menu.registerKeyPress(GEM_KEY_RIGHT);
-            // Button was in a pressed state during rotation of the knob, acting as a modifier to rotation action
-            secondaryPressed = true;
-          } else {
-            // ...or GEM_KEY_DOWN otherwise
-            Serial.println("Rotation CW (release)");
-            menu.registerKeyPress(GEM_KEY_DOWN);
-          }
-        }
-        break;
-      case KEY_C:
-        // Button was released
-        Serial.println("Button released");
-        if (!secondaryPressed) {
-          // If button was not used as a modifier to rotation action...
-          if (now <= keyPressTime + keyPressDelay) {
-            // ...and if not enough time passed since keyPressTime,
-            // treat key that was pressed as Ok button
-            menu.registerKeyPress(GEM_KEY_OK);
-          }
-        }
-        secondaryPressed = false;
-        cancelPressed = false;
-        break;
-    }
-    // After keyPressDelay passed since keyPressTime
-    if (now > keyPressTime + keyPressDelay) {
-      switch (myKeyDetector.current) {
+    // Get current time to use later on
+    now = millis();
+    
+    // If menu is ready to accept button press...
+    if (menu.readyForKey()) {
+      // ...detect key press using KeyDetector library
+      // and pass pressed button to menu
+      myKeyDetector.detect();
+    
+      switch (myKeyDetector.trigger) {
         case KEY_C:
-          if (!secondaryPressed && !cancelPressed) {
-            // If button was not used as a modifier to rotation action, and Cancel action was not triggered yet
-            Serial.println("Button remained pressed");
-            // Treat key that was pressed as Cancel button
-            menu.registerKeyPress(GEM_KEY_CANCEL);
-            cancelPressed = true;
-          }
+          // Button was pressed
+          Serial.println("Button pressed");
+          // Save current time as a time of the key press event
+          keyPressTime = now;
           break;
       }
-    }
-  }
-
-
-
-
-    // button.loop();  // MUST call the loop() function first
-
-    // if (prev_counter != counter) {
-    //   Serial.print("Rotary Encoder:: direction: ");
-    //   if (direction == DIRECTION_CW)
-    //     Serial.print("CLOCKWISE");
-    //   else
-    //     Serial.print("ANTICLOCKWISE");
-    
-    //   Serial.print(" - count: ");
-    //   Serial.println(counter);
-    
-    //   prev_counter = counter;
-    // }
-
-    // if (button.isPressed()) {
-    //   Serial.println("The button is pressed");
-    // }
-
-
-    //TODO: код що виконується безкінечно
-  //   for (size_t i = 0; i < 4; i++)
-  //   {
-  //     xSemaphoreTake(mutexSerial, portMAX_DELAY);
-  //     Serial.printf("[%8lu] Run Task1 on Core: %d\r\n", millis(), xPortGetCoreID());
-  //     xSemaphoreGive(mutexSerial);
-      
-  //     xSemaphoreTake(mutexSPI, portMAX_DELAY);
-  //     CS_HC595_SET();
-  //     SPI.transfer(1 << i);
-  //     CS_HC595_RESET();
-  //     xSemaphoreGive(mutexSPI);
-
-  //     vTaskDelay(1000 / portTICK_PERIOD_MS);
-  //   }
-  }
-}
-
-// void Task2(void* parameters)
-// {
-//   while (1)
-//   {
-//     max7219.Clean();
-//     max7219.DecodeOn();
-
-//     xSemaphoreTake(mutexSerial, portMAX_DELAY);
-//     Serial.printf("[%8lu] Run Task2 on Core: %d\r\n", millis(), xPortGetCoreID());
-//     xSemaphoreGive(mutexSerial);
-    
-//     xSemaphoreTake(mutexSPI, portMAX_DELAY);
-//     max7219.PrintNtos(8, millis(), 8);
-//     xSemaphoreGive(mutexSPI);
-
-//     vTaskDelay(973 / portTICK_PERIOD_MS);
-//   }  
-// }
-
-void Task3(void* parameters)
-{
-  pinMode(KEY_PIN, INPUT);
-
-  while (1)
-  {
-    if(!digitalRead(KEY_PIN) && !keyFlag)
-    {
-      keyFlag = true;
-
-      xSemaphoreTake(mutexSerial, portMAX_DELAY);
-      Serial.printf("[%8lu] KEY is pressed!\r\n", millis());
-      xSemaphoreGive(mutexSerial);      
-    }
-
-    if (digitalRead(KEY_PIN) && keyFlag)
-    {
-      keyFlag = false;
-
-      xSemaphoreTake(mutexSerial, portMAX_DELAY);
-      Serial.printf("[%8lu] KEY is unpressed!\r\n", millis());
-      xSemaphoreGive(mutexSerial);
-
-      if (task4Active)
-      {
-        task4Active = false;
-        vTaskSuspend(Task2Handle);
+      /* Detecting rotation of the encoder on release rather than push
+      (i.e. myKeyDetector.triggerRelease rather myKeyDetector.trigger)
+      may lead to more stable readings (without excessive signal ripple) */
+      switch (myKeyDetector.triggerRelease) {
+        case KEY_A:
+          // Signal from Channel A of encoder was detected
+          if (digitalRead(channelB) == LOW) {
+            // If channel B is low then the knob was rotated CCW
+            if (myKeyDetector.current == KEY_C) {
+              // If push-button was pressed at that time, then treat this action as GEM_KEY_LEFT,...
+              Serial.println("Rotation CCW with button pressed (release)");
+              menu.registerKeyPress(GEM_KEY_LEFT);
+              // Button was in a pressed state during rotation of the knob, acting as a modifier to rotation action
+              secondaryPressed = true;
+            } else {
+              // ...or GEM_KEY_UP otherwise
+              Serial.println("Rotation CCW (release)");
+              menu.registerKeyPress(GEM_KEY_UP);
+            }
+          } else {
+            // If channel B is high then the knob was rotated CW
+            if (myKeyDetector.current == KEY_C) {
+              // If push-button was pressed at that time, then treat this action as GEM_KEY_RIGHT,...
+              Serial.println("Rotation CW with button pressed (release)");
+              menu.registerKeyPress(GEM_KEY_RIGHT);
+              // Button was in a pressed state during rotation of the knob, acting as a modifier to rotation action
+              secondaryPressed = true;
+            } else {
+              // ...or GEM_KEY_DOWN otherwise
+              Serial.println("Rotation CW (release)");
+              menu.registerKeyPress(GEM_KEY_DOWN);
+            }
+          }
+          break;
+        case KEY_C:
+          // Button was released
+          Serial.println("Button released");
+          if (!secondaryPressed) {
+            // If button was not used as a modifier to rotation action...
+            if (now <= keyPressTime + keyPressDelay) {
+              // ...and if not enough time passed since keyPressTime,
+              // treat key that was pressed as Ok button
+              menu.registerKeyPress(GEM_KEY_OK);
+            }
+          }
+          secondaryPressed = false;
+          cancelPressed = false;
+          break;
       }
-      else
-      {
-        task4Active = true;        
-        vTaskResume(Task2Handle);
-      }           
+      // After keyPressDelay passed since keyPressTime
+      if (now > keyPressTime + keyPressDelay) {
+        switch (myKeyDetector.current) {
+          case KEY_C:
+            if (!secondaryPressed && !cancelPressed) {
+              // If button was not used as a modifier to rotation action, and Cancel action was not triggered yet
+              Serial.println("Button remained pressed");
+              // Treat key that was pressed as Cancel button
+              menu.registerKeyPress(GEM_KEY_CANCEL);
+              cancelPressed = true;
+            }
+            break;
+        }
+      }
     }
-
-    vTaskDelay(50 / portTICK_PERIOD_MS);
-  }
-  
-}
-
-// void Task4(void* parameters)
-// { 
-//   uint8_t brightness[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 
-//                            0x0F, 0x0E, 0x0D, 0x0C, 0x0B, 0x0A, 0x09, 0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01 };
-  
-//   while (1)
-//   {
-//       for (size_t i = 0; i < sizeof(brightness) / sizeof(brightness[0]); i++)
-//       {
-//         xSemaphoreTake(mutexSPI, portMAX_DELAY);
-//         max7219.SetIntensivity(brightness[i]);
-//         xSemaphoreGive(mutexSPI);
-
-//         vTaskDelay(150 / portTICK_PERIOD_MS); 
-//       }            
-//   }  
-// }
-
-void Task5(void* parameters)
-{
-  ledcSetup(0, 5000, 8);
-  ledcAttachPin(LED_BLUE, 0);
-
-  uint8_t n = 0;
-  bool direction = false;
-
-  while (1)
-  {  
-    if (!direction && n == 255)    
-    {
-      direction = true;
-    }
-    
-    if (direction && n == 0)
-    {
-      direction = false;
-    }
-    
-    ledcWrite(0, n);
-
-    if (!direction)
-    {
-      n++;
-    }
-    else
-    {
-      n--;
-    }
-    
-    vTaskDelay(10 / portTICK_PERIOD_MS); 
   }
 }
+
 
 void printData() {
   // If enablePrint flag is set to true (checkbox on screen is checked)...
