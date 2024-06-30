@@ -25,7 +25,8 @@
 #define X9C10X_DOWN                 LOW
 
 #define X9C10X_MAXPOT               99
-
+#define DIRECTION_PIN               15
+#define PULSE_PIN                   4
 
 /////////////////////////////////////////////////////////
 //
@@ -323,7 +324,7 @@ void HC595::begin()
   int HC595_OUTPUT = 4;
   for(int i = 0; i < HC595_OUTPUT; i++ )
   {
-    pot[i].begin(15, 4, i, &latchReg); 
+    pot[i].begin(PULSE_PIN, DIRECTION_PIN, i, &latchReg); 
   } 
 }
 
