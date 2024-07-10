@@ -328,6 +328,27 @@ void HC595::begin()
   } 
 }
 
+void HC595::enablePower(uint8_t idPot)
+{
+  Serial.println("***********");
+  Serial.println(latchReg, BIN);
+  CS_HC595_SET();
+  latchReg |= (1 << (idPot+4)); 
+  SPI.transfer(latchReg);
+  CS_HC595_RESET();
+  Serial.println(latchReg, BIN);
+}
+void HC595::disablePower(uint8_t idPot)
+{
+  Serial.println("------------");
+  Serial.println(latchReg, BIN);
+  CS_HC595_SET();
+  latchReg &= ~(1 << (idPot+4)); 
+  SPI.transfer(latchReg);
+  CS_HC595_RESET();
+  Serial.println(latchReg, BIN);
+}
+
 //  -- END OF FILE --
 
 
