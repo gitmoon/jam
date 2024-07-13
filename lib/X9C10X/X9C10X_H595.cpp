@@ -349,6 +349,11 @@ void HC595::disablePower(uint8_t idPot)
   Serial.println(latchReg, BIN);
 }
 
+bool HC595::getPower(uint8_t idPot)
+{
+  return latchReg & (1 << (idPot+4));
+}
+
 //  -- END OF FILE --
 
 

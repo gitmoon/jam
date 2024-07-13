@@ -132,12 +132,13 @@ public:
 class HC595
 {
 public:
-  X9C103 pot[4]; 
+  X9C503 pot[4]; 
   HC595();
   void begin();
   void enablePower(uint8_t idPot); //[0-3]
   void disablePower(uint8_t idPot); //[0-3]
-  
+  bool getPower(uint8_t idPot);
+
 private:
   uint8_t latchReg; //[0-3] chip select, [4-7] power control
 };

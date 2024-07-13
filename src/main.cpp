@@ -14,10 +14,11 @@
 #define KEY_C 3
 
 void setupMenu();
+void powerControl(byte menuItemIndex);
 void Task0(void* parameters);
 void Task1(void* parameters);
 
-createSafeStringReader(sfReader, 30, " ,\n");
+createSafeStringReader(sfStr, 30, " ,\n");
 
 // Pins encoder is connected to
 const byte channelA = 27;
@@ -49,10 +50,6 @@ long now; // Variable to hold current time taken with millis() function at the b
 U8G2_SSD1306_128X64_NONAME_F_SW_I2C
 u8g2(U8G2_R0,/*clock=*/22,21,U8X8_PIN_NONE);
 
-// Create variables that will be editable through the menu and assign them initial values
-bool power1 = false;
-bool power2 = false;
-bool power3 = false;
 bool enablePrint = false;
 
 // Create variable that will be editable through option select and create associated option select.
@@ -69,32 +66,44 @@ GEMItem menuItemInvert("Chars order:", invert, selectInvert, applyInvert);
 // Create two menu item objects of class GEMItem, linked to number and enablePrint variables 
 void func1(GEMCallbackData callbackData); // Forward declaration
 void func2(GEMCallbackData callbackData); // Forward declaration
+void func3(GEMCallbackData callbackData); // Forward declaration
+void func4(GEMCallbackData callbackData); // Forward declaration
 
-byte f1 = 0;
-byte f2 = 0;
-byte f3 = 0;
-int interval_f1 = 0;
-int interval_f2 = 0;
+// Create variables that will be editable through the menu and assign them initial values
+byte freq[4] = {0, 0, 0, 0};
+
+// int interval_f1 = 0;
+// int interval_f2 = 0;
+
+SelectOptionByte selectOption_2G3_2G6[] = {{"2G3-2G4", 0}, {"2G4-2G5", 1}, {"2G5-2G6", 2}};
+GEMSelect select_2G3_2G6(sizeof(selectOption_2G3_2G6)/sizeof(SelectOptionByte), selectOption_2G3_2G6);
+// Values of interval variable associated with each select option
+int values_f1[] = {0, 50, 99};
+
 SelectOptionByte selectOption_300_500[] = {{"300-350", 0}, {"350-400", 1}, {"400-450", 2}, {"450-500", 3}};
 GEMSelect select_300_500(sizeof(selectOption_300_500)/sizeof(SelectOptionByte), selectOption_300_500);
 // Values of interval variable associated with each select option
-int values_f1[] = {0, 25, 50, 99};
+int values_f2[] = {0, 25, 50, 99};
+
+SelectOptionByte selectOption_700_900[] = {{"700-750", 0}, {"750-800", 1}, {"800-850", 2}, {"850-900", 3}};
+GEMSelect select_700_900(sizeof(selectOption_700_900)/sizeof(SelectOptionByte), selectOption_700_900);
+int values_f3[] = {0, 25, 50, 99};
 
 SelectOptionByte selectOption_600_800[] = {{"600-650", 0}, {"650-700", 1}, {"700-750", 2}, {"750-800", 3}};
 GEMSelect select_600_800(sizeof(selectOption_600_800)/sizeof(SelectOptionByte), selectOption_600_800);
-int values_f2[] = {0, 25, 50, 99};
+int values_f4[] = {0, 25, 50, 99};
 
-GEMItem menuItemInt ("F1: ON", f1, select_300_500, func1, power1);
-GEMItem menuItemInt2("F2: ON", f2, select_600_800, func2, power2);
-
-
-GEMItem menuItemBool("Enable print:", enablePrint);
+GEMItem menuItemF1("F1: OFF", freq[0], select_2G3_2G6, func1, 0);
+GEMItem menuItemF2("F2: OFF", freq[1], select_300_500, func2, 1);
+GEMItem menuItemF3("F3: OFF", freq[2], select_700_900, func3, 2);
+GEMItem menuItemF4("F4: OFF", freq[3], select_600_800, func4, 3);
+// GEMItem menuItemBool("Enable print:", enablePrint);
 
 // Create menu button that will trigger printData() function. It will print value of our number variable
 // to Serial monitor if enablePrint is true. We will write (define) this function later. However, we should
 // forward-declare it in order to pass to GEMItem constructor
 void printData(); // Forward declaration
-GEMItem menuItemButton("Print", printData);
+// GEMItem menuItemButton("Print", printData);
 
 // Create menu page object of class GEMPage. Menu page holds menu items (GEMItem) and represents menu level.
 // Menu can have multiple menu pages (linked to each other) with multiple menu items each
@@ -125,7 +134,7 @@ void setup()
   Serial.begin(115200);
   Serial.println("Serial is OK!");
   SafeString::setOutput(Serial); 
-  sfReader.connect(Serial);
+  sfStr.connect(Serial);
 
 
   u8g2.begin();
@@ -137,10 +146,10 @@ void setup()
   pinMode(buttonPin, INPUT_PULLUP);
 
   hc595.begin();
-  hc595.enablePower(0);
-  hc595.disablePower(1);
-  hc595.disablePower(2);
-  hc595.disablePower(3);
+  for(int i=0; i<4; i++) {
+      hc595.disablePower(i);
+  }
+
   mutexSPI = xSemaphoreCreateMutex();
   mutexSerial = xSemaphoreCreateMutex();
 
@@ -165,10 +174,10 @@ void setupMenu() {
 
   // Add menu items to menu page
   menuPageMain.addMenuItem(menuItemMainSettings);
-  menuPageMain.addMenuItem(menuItemInt);
-  menuPageMain.addMenuItem(menuItemInt2);
-  menuPageMain.addMenuItem(menuItemBool);
-  menuPageMain.addMenuItem(menuItemButton);
+  menuPageMain.addMenuItem(menuItemF1);
+  menuPageMain.addMenuItem(menuItemF2);
+  menuPageMain.addMenuItem(menuItemF3);
+  menuPageMain.addMenuItem(menuItemF4);
 
   // Specify parent menu page for the Settings menu page
   menuPageSettings.setParentMenuPage(menuPageMain);
@@ -268,12 +277,9 @@ void Task1(void* parameters)
             if (!secondaryPressed && !cancelPressed) {
               // If button was not used as a modifier to rotation action, and Cancel action was not triggered yet
               Serial.println("Button remained pressed");
-              // byte index = menuPageMain.getCurrentMenuItemIndex();
-              // Serial.println(index);
-              // GEMItem* menuItemButtonTmp = menu.getCurrentMenuPage()->getCurrentMenuItem();
-              // const char* titleOrig = menuItemButtonTmp->getTitle();
-              // Serial.println(titleOrig);
-              
+              byte index = menuPageMain.getCurrentMenuItemIndex();
+              Serial.println(index);
+              powerControl(index);  
               // Treat key that was pressed as Cancel button
               menu.registerKeyPress(GEM_KEY_CANCEL);
               cancelPressed = true;
@@ -307,8 +313,8 @@ void applyInvert() {
 void func1(GEMCallbackData callbackData) {
   const char *p = callbackData.pMenuItem->getTitle();
   Serial.print(p);
-  interval_f1 = values_f1[f1];
-  Serial.println(f1);
+  uint16_t interval_f1 = values_f1[freq[0]];
+  Serial.println(freq[0]);
   Serial.println(interval_f1);
   hc595.pot[0].setPosition(interval_f1);
 
@@ -316,10 +322,50 @@ void func1(GEMCallbackData callbackData) {
 
 void func2(GEMCallbackData callbackData) {
   const char *p = callbackData.pMenuItem->getTitle();
-    interval_f2 = values_f2[f2];
-    // Serial.println(number2, DEC);
-    Serial.println(f2);
+    uint16_t interval_f2 = values_f2[freq[1]];
+    Serial.println(freq[1]);
     Serial.println(interval_f2);
-    hc595.pot[1].setPosition(interval_f1);
+    hc595.pot[1].setPosition(interval_f2);
 }
 
+void func3(GEMCallbackData callbackData) {
+  const char *p = callbackData.pMenuItem->getTitle();
+  Serial.print(p);
+  uint16_t interval_f3 = values_f1[freq[2]];
+  Serial.println(freq[2]);
+  Serial.println(interval_f3);
+  hc595.pot[2].setPosition(interval_f3);
+
+}
+
+void func4(GEMCallbackData callbackData) {
+  const char *p = callbackData.pMenuItem->getTitle();
+  Serial.print(p);
+  uint16_t interval_f4 = values_f1[freq[3]];
+  Serial.println(freq[3]);
+  Serial.println(interval_f4);
+  hc595.pot[3].setPosition(interval_f4);
+}
+
+void powerControl(byte menuItemIndex) {
+  GEMItem* menuItemTmp = menu.getCurrentMenuPage()->getCurrentMenuItem();
+  // const char* titleOrig = menuItemTmp->getTitle();
+  // Serial.printf("titleOrig %s",titleOrig);
+  byte potId = menuItemIndex -1;
+  bool state = hc595.getPower(potId);
+  // Serial.printf("state %d\n", state);
+  static char buf[4][10];
+  if(state) {
+    Serial.printf("Turn off %d\n", potId);
+    snprintf(buf[potId], 10, "F%d: OFF", potId+1);
+    menuItemTmp->setTitle(buf[potId]);
+    hc595.disablePower(potId);
+  }
+  else {
+    Serial.printf("Turn on %d\n", potId);
+    snprintf(buf[potId], sizeof(buf), "F%d: ON", potId+1);
+    menuItemTmp->setTitle(buf[potId]);
+    hc595.enablePower(potId);
+  }
+  menu.drawMenu();
+}
