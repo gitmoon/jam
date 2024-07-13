@@ -72,13 +72,10 @@ void func4(GEMCallbackData callbackData); // Forward declaration
 // Create variables that will be editable through the menu and assign them initial values
 byte freq[4] = {0, 0, 0, 0};
 
-// int interval_f1 = 0;
-// int interval_f2 = 0;
-
-SelectOptionByte selectOption_2G3_2G6[] = {{"2G3-2G4", 0}, {"2G4-2G5", 1}, {"2G5-2G6", 2}};
+SelectOptionByte selectOption_2G3_2G6[] = {{"2G3-2G4", 0}, {"2G4-2G5", 1}, {"2G5-2G6", 2},{"2G6-2G7", 3}};
 GEMSelect select_2G3_2G6(sizeof(selectOption_2G3_2G6)/sizeof(SelectOptionByte), selectOption_2G3_2G6);
 // Values of interval variable associated with each select option
-int values_f1[] = {0, 50, 99};
+int values_f1[] = {0, 25, 50, 99};
 
 SelectOptionByte selectOption_300_500[] = {{"300-350", 0}, {"350-400", 1}, {"400-450", 2}, {"450-500", 3}};
 GEMSelect select_300_500(sizeof(selectOption_300_500)/sizeof(SelectOptionByte), selectOption_300_500);
@@ -316,7 +313,7 @@ void func1(GEMCallbackData callbackData) {
   uint16_t interval_f1 = values_f1[freq[0]];
   Serial.println(freq[0]);
   Serial.println(interval_f1);
-  hc595.pot[0].setPosition(interval_f1);
+  hc595.pot[0].setPosition(interval_f1, true);
 
 }
 
@@ -325,26 +322,26 @@ void func2(GEMCallbackData callbackData) {
     uint16_t interval_f2 = values_f2[freq[1]];
     Serial.println(freq[1]);
     Serial.println(interval_f2);
-    hc595.pot[1].setPosition(interval_f2);
+    hc595.pot[1].setPosition(interval_f2, true);
 }
 
 void func3(GEMCallbackData callbackData) {
   const char *p = callbackData.pMenuItem->getTitle();
   Serial.print(p);
-  uint16_t interval_f3 = values_f1[freq[2]];
+  uint16_t interval_f3 = values_f3[freq[2]];
   Serial.println(freq[2]);
   Serial.println(interval_f3);
-  hc595.pot[2].setPosition(interval_f3);
+  hc595.pot[2].setPosition(interval_f3, true);
 
 }
 
 void func4(GEMCallbackData callbackData) {
   const char *p = callbackData.pMenuItem->getTitle();
   Serial.print(p);
-  uint16_t interval_f4 = values_f1[freq[3]];
+  uint16_t interval_f4 = values_f4[freq[3]];
   Serial.println(freq[3]);
   Serial.println(interval_f4);
-  hc595.pot[3].setPosition(interval_f4);
+  hc595.pot[3].setPosition(interval_f4, true);
 }
 
 void powerControl(byte menuItemIndex) {
@@ -365,6 +362,8 @@ void powerControl(byte menuItemIndex) {
     Serial.printf("Turn on %d\n", potId);
     snprintf(buf[potId], sizeof(buf), "F%d: ON", potId+1);
     menuItemTmp->setTitle(buf[potId]);
+    uint16_t interval_f = values_f1[freq[potId]];
+    hc595.pot[potId].setPosition(interval_f, true);
     hc595.enablePower(potId);
   }
   menu.drawMenu();
